@@ -1,6 +1,8 @@
 ---
 title: "Week 9, Day 2"
-output: html_document
+output:
+  pdf_document: default
+  html_document: default
 ---
 
 ```{r setup, include=FALSE}
@@ -38,6 +40,16 @@ week_9 <- kenya %>%
 * Fit the  model and interpret the coefficients. Focus on the coefficient of the interaction term.
 
 
+$$ reg\_chg_i = \beta_0 + \beta_1 treatment + \beta_2 poverty\_n + \epsilon $$
+
+```{r}
+fit_obj <- stan_glm(data = week_9,
+                  reg_chg ~ treatment*poverty_n,
+                  family = gaussian(),
+                  refresh = 0)
+
+print(fit_obj, digits = 4)
+```
 
 
 ## Scene 2
@@ -50,13 +62,37 @@ Write a sentence or two for each of these topics:
 
 * What would Wisdom suggest about the use of the `kenya` data to answer this question?
 
+The poverty_n value is negative, which may balance out the treatment affect based on our stan_glm result and our data.
+
 * Describe the ideal Preceptor Table.
+
+The ideal preceptor table would have the control, treatment, and treatment:poverty_n interaction at all time points.
 
 * Graph the posterior probability distribution `reg_chg` if polling station 007/001 were to be assigned treatment in January.
 
+```{r}
+new_data <- week_9 %>% 
+  head(1)
+
+pp <- posterior_predict(fit_obj, newdata = new_data)
+
+pp %>% 
+  as_tibble() %>% 
+  ggplot(aes(x = `1`)) +
+  geom_histogram(aes(y = after_stat(count/sum(count))),
+                 bins = 100) + 
+  geom_vline(xintercept = .04, color = "blue") +
+  labs(x = "Affect",
+       y = "Probability",
+       title = "Change in Voter Registration From Treatment") +
+  scale_y_continuous(labels = scales::percent) + 
+  theme_minimal()
+```
+
+
 * Answer the President's question.
 
-
+We predict no affect of treatment at polling station 007/001, however it is possible. 
 
 
 ## Scene 3
@@ -69,4 +105,24 @@ Write a sentence or two for each of these topics:
 Using the model which you created in Scene 1, create a graphic of the posterior probability distribution of the causal effect of `local` treatment in polling stations which have +2 sigma poverty rates. Note that there are two ways to do this. First, we can use a parameter approach. This is what we did in class last week. Second, we can use `posterior_epred()`, which is generally easier since it does the math for us. Use the `posterior_epred()` approach. 
 
 
+```{r}
+new_data_2 <- tibble(treatment = c("local", "control"), 
+       poverty_n = 2)
+  
+
+pe <- posterior_epred(fit_obj, newdata = new_data_2)
+
+
+
+pe %>% 
+  as_tibble() %>% 
+  mutate(new = `1` - `2`) %>% 
+  ggplot(aes(x = new)) +
+  geom_histogram(aes(y = after_stat(count/sum(count))),
+                 bins = 100) +
+  labs(x = "Affect",
+       y = "Probability",
+       title = "Change in Voter Registration From Treatment") +
+  scale_y_continuous(labels = scales::percent) +
+  theme_minimal()
 
